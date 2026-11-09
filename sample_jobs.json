@@ -1,0 +1,82 @@
+[
+  {
+    "id": "job_001",
+    "title": "Senior Backend Engineer",
+    "company": "DataStream Inc.",
+    "location": "Remote",
+    "description": "We are looking for a Senior Backend Engineer with 5+ years of experience in Python and distributed systems. Requirements: Strong proficiency in Python, FastAPI or Django. Experience with PostgreSQL and Redis. Knowledge of Docker and Kubernetes. Bachelor's degree in Computer Science or related field. Responsibilities include designing RESTful APIs, optimizing database queries, and mentoring junior engineers.",
+    "url": "https://example.com/jobs/001"
+  },
+  {
+    "id": "job_002",
+    "title": "Machine Learning Engineer",
+    "company": "Nexus AI",
+    "location": "San Francisco, CA",
+    "description": "Join our ML team to build production-grade machine learning systems. Required: 3+ years experience with Python and machine learning frameworks like PyTorch or TensorFlow. Experience with model serving, MLOps, and vector databases. Master's degree preferred. You will design and deploy ML pipelines, build embeddings-based retrieval systems, and collaborate with data scientists.",
+    "url": "https://example.com/jobs/002"
+  },
+  {
+    "id": "job_003",
+    "title": "Data Engineer",
+    "company": "CloudBase Technologies",
+    "location": "New York, NY",
+    "description": "We need a Data Engineer with 4+ years of experience building scalable data pipelines. Skills required: Apache Spark, Kafka, Airflow, Python, and SQL. Experience with AWS or GCP is a plus. Bachelor's degree in Computer Science or Engineering required. You will design ETL pipelines, manage data warehouses, and ensure data quality.",
+    "url": "https://example.com/jobs/003"
+  },
+  {
+    "id": "job_004",
+    "title": "Full Stack Developer",
+    "company": "StartupHub",
+    "location": "Austin, TX",
+    "description": "Looking for a Full Stack Developer with 2-4 years of experience. Must have strong JavaScript/TypeScript skills, experience with React on the frontend, and Node.js or Python on the backend. Familiarity with PostgreSQL and REST APIs. Bachelor's degree required. Build and ship product features end-to-end in a fast-paced startup environment.",
+    "url": "https://example.com/jobs/004"
+  },
+  {
+    "id": "job_005",
+    "title": "NLP Research Engineer",
+    "company": "LangTech Labs",
+    "location": "Remote",
+    "description": "NLP Research Engineer with expertise in large language models, transformers, and text processing. PhD or Master's in NLP, ML, or Computer Science required. 3+ years experience with Hugging Face, fine-tuning LLMs, retrieval-augmented generation (RAG), and embedding models. You will research and implement state-of-the-art NLP solutions.",
+    "url": "https://example.com/jobs/005"
+  },
+  {
+    "id": "job_006",
+    "title": "DevOps Engineer",
+    "company": "InfraScale",
+    "location": "Seattle, WA",
+    "description": "DevOps Engineer with 3-5 years experience managing cloud infrastructure. Required skills: Kubernetes, Docker, Terraform, CI/CD pipelines (GitHub Actions, Jenkins), AWS or Azure. Bachelor's degree in Computer Science. You will manage production infrastructure, automate deployments, and improve system reliability and observability.",
+    "url": "https://example.com/jobs/006"
+  },
+  {
+    "id": "job_007",
+    "title": "Entry Level Software Engineer",
+    "company": "GreenTech Solutions",
+    "location": "Chicago, IL",
+    "description": "Entry-level Software Engineer position for recent graduates or those with 0-2 years of experience. Required: Proficiency in Python or Java, understanding of data structures and algorithms, familiarity with Git. Bachelor's degree in Computer Science required. You will work on internal tools, bug fixes, and feature development under senior guidance.",
+    "url": "https://example.com/jobs/007"
+  },
+  {
+    "id": "job_008",
+    "title": "AI Product Manager",
+    "company": "Visionary Corp",
+    "location": "Remote",
+    "description": "AI Product Manager with 4+ years of product management experience, specifically in AI or ML products. MBA or Master's preferred. Strong understanding of machine learning concepts, NLP, and data products. Experience working with engineering teams to ship AI features. You will define product roadmaps, write specifications, and drive cross-functional alignment.",
+    "url": "https://example.com/jobs/008"
+  },
+  {
+    "id": "job_009",
+    "title": "Platform Engineer",
+    "company": "MegaCloud",
+    "location": "Remote",
+    "description": "Platform Engineer to build and maintain internal developer platforms. Required: 5+ years experience with Python, Go, or Java. Deep knowledge of Kubernetes, service mesh (Istio), and observability tools (Prometheus, Grafana). Bachelor's degree in Computer Science or Engineering. Senior-level role managing infrastructure used by hundreds of engineers.",
+    "url": "https://example.com/jobs/009"
+  },
+  {
+    "id": "job_010",
+    "title": "Data Scientist",
+    "company": "InsightWave",
+    "location": "Boston, MA",
+    "description": "Data Scientist with 3+ years experience in statistical modeling and machine learning. Required: Python, pandas, scikit-learn, SQL, and experience with A/B testing. Master's degree in Statistics, Mathematics, or Computer Science strongly preferred. You will work on customer segmentation, predictive modeling, and business analytics to drive data-driven decisions.",
+    "url": "https://example.com/jobs/010"
+  }
+]

@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 # ── TypedDicts ────────────────────────────────────────────────────────────────
 
-class JobMatch(TypedDict):
+class JobMatch(TypedDict, total=False):
     """One ranked result returned to the caller."""
     job_id: str
     title: str
@@ -53,6 +53,7 @@ class JobMatch(TypedDict):
     score: float          # Cohere relevance score (higher = better)
     explanation: str      # LLM-generated fit explanation
     url: str              # Link to the original posting
+    source: str           # Job board portal (e.g. greenhouse, lever)
 
 
 # ── Client helpers ────────────────────────────────────────────────────────────
@@ -93,6 +94,7 @@ def embed_resume(resume_text: str) -> np.ndarray:
     client = _voyage_client()
     result = client.embed([resume_text], model=VOYAGE_MODEL, input_type="query")
     vec = np.array(result.embeddings[0], dtype=np.float32)
+    # vec.shape[0] returns size of the first dimension of numpy array. in this case it is 1024
     if vec.shape[0] != EMBEDDING_DIM:
         raise ValueError(f"Unexpected embedding dim {vec.shape[0]}, expected {EMBEDDING_DIM}")
     return vec
@@ -101,6 +103,7 @@ def embed_resume(resume_text: str) -> np.ndarray:
 # ── Stage 2: Dense Retrieval (HNSW in ChromaDB) ───────────────────────────────
 
 def dense_retrieve(
+    # array returned by previous function
     query_embedding: np.ndarray,
     top_k: int = RETRIEVE_TOP_K,
     degree: int = DEGREE_UNKNOWN,
@@ -148,6 +151,7 @@ def dense_retrieve(
             "location":            meta.get("location", ""),
             "description":         doc,
             "url":                 meta.get("url", ""),
+            "source":              meta.get("source", ""),
             "distance":            dist,
             "required_degree":     meta.get("required_degree", 0),
             "seniority_level":     meta.get("seniority_level", 0),
@@ -190,6 +194,7 @@ def rerank(resume_text: str, candidates: list[dict], top_n: int = RERANK_TOP_N) 
     )
 
     reranked: list[dict] = []
+    # Cohere returns results containing an index and a relevance_score.
     for result in response.results:
         job = dict(candidates[result.index])
         job["rerank_score"] = result.relevance_score
@@ -224,6 +229,7 @@ Be concise and specific. Start with "Your".
 
 _SKILL_RE = re.compile(r'\[.*?\]', re.DOTALL)
 
+# temperature	Controls randomness in generation
 
 def _ollama_chat(prompt: str, temperature: float = 0.3) -> str:
     """Call the local Ollama REST API and return the model's text response."""
@@ -365,6 +371,7 @@ def match_resume(
             score       = round(job["rerank_score"], 4),
             explanation = explanation,
             url         = job["url"],
+            source      = job.get("source", ""),
         ))
 
     return matches

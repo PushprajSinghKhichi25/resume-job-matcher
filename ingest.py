@@ -1,25 +1,21 @@
 """
 Job ingestion CLI.
 
-Reads a JSON file of job postings, cleans the text, extracts metadata,
-embeds each description with VoyageAI, and upserts everything into ChromaDB.
+Reads job postings from a JSON file OR fetches them live from Greenhouse / Lever,
+cleans the text, extracts metadata, embeds each description with VoyageAI,
+and upserts everything into ChromaDB.
 
 Usage
 ─────
-  python ingest.py                           # uses sample_jobs.json
-  python ingest.py --file my_jobs.json
-  python ingest.py --file my_jobs.json --reset   # wipe collection first
+  # Ingest from JSON file:
+  python ingest.py                             # uses real_jobs.json if exists, else sample_jobs.json
+  python ingest.py --file real_jobs.json
+  python ingest.py --file real_jobs.json --reset   # wipe collection first
 
-JSON schema (each object in the array)
-──────────────────────────────────────
-  {
-    "id":          "unique-string",          # required
-    "title":       "Software Engineer",      # required
-    "company":     "Acme Corp",              # required
-    "location":    "Remote",
-    "description": "<p>HTML or plain text</p>",  # required
-    "url":         "https://jobs.example.com/123"
-  }
+  # Fetch live from job boards and ingest directly:
+  python ingest.py --fetch greenhouse --companies cloudflare,figma --reset
+  python ingest.py --fetch lever --companies spotify,palantir
+  python ingest.py --fetch all --limit 40 --reset
 """
 
 from __future__ import annotations
@@ -50,6 +46,12 @@ from config import (
     VOYAGE_MODEL,
 )
 from preprocess import clean_html, extract_degree, extract_seniority, extract_min_years
+from fetchers import (
+    GreenhouseFetcher,
+    LeverFetcher,
+    RemotiveFetcher,
+    fetch_all_jobs,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)s  %(message)s")
 logger = logging.getLogger(__name__)
@@ -87,31 +89,22 @@ def embed_documents(texts: list[str], voyage_client: voyageai.Client) -> list[li
     return all_embeddings
 
 
-# ── Ingestion ─────────────────────────────────────────────────────────────────
+# ── Ingestion Core ────────────────────────────────────────────────────────────
 
-def ingest(jobs_path: str, reset: bool = False) -> None:
+def ingest_jobs_list(raw_jobs: list[dict], reset: bool = False) -> int:
     """
-    Load jobs from a JSON file and upsert them into ChromaDB.
+    Preprocess, embed, and upsert a list of job dictionaries into ChromaDB.
 
     Args:
-        jobs_path: Path to the JSON file containing job objects.
-        reset:     If True, delete the collection and rebuild from scratch.
+        raw_jobs: List of dicts with id, title, company, description, etc.
+        reset: If True, deletes existing collection before indexing.
+
+    Returns:
+        Number of jobs successfully indexed.
     """
-    # Validate API key
     if not VOYAGE_API_KEY:
         logger.error("VOYAGE_API_KEY is not set in .env — cannot embed jobs")
-        sys.exit(1)
-
-    # Load jobs file
-    jobs_file = Path(jobs_path)
-    if not jobs_file.exists():
-        logger.error("Jobs file not found: %s", jobs_path)
-        sys.exit(1)
-
-    with open(jobs_file) as f:
-        raw_jobs: list[dict] = json.load(f)
-
-    logger.info("Loaded %d jobs from %s", len(raw_jobs), jobs_path)
+        raise RuntimeError("VOYAGE_API_KEY is not set in .env")
 
     # Validate required fields
     valid_jobs = []
@@ -121,11 +114,11 @@ def ingest(jobs_path: str, reset: bool = False) -> None:
             continue
         valid_jobs.append(job)
 
-    logger.info("%d jobs passed validation", len(valid_jobs))
+    logger.info("%d / %d jobs passed validation", len(valid_jobs), len(raw_jobs))
 
     if not valid_jobs:
-        logger.error("No valid jobs to ingest — check your JSON file")
-        sys.exit(1)
+        logger.error("No valid jobs to ingest")
+        return 0
 
     # Preprocess descriptions
     logger.info("Preprocessing job descriptions…")
@@ -139,6 +132,7 @@ def ingest(jobs_path: str, reset: bool = False) -> None:
             "company":             job.get("company", ""),
             "location":            job.get("location", ""),
             "url":                 job.get("url", ""),
+            "source":              job.get("source", "sample"),
             "required_degree":     extract_degree(desc),
             "seniority_level":     extract_seniority(desc, title=job.get("title", "")),
             "min_years_experience":extract_min_years(desc),
@@ -176,28 +170,105 @@ def ingest(jobs_path: str, reset: bool = False) -> None:
         metadatas  =metadatas,
     )
 
+    total_count = collection.count()
     logger.info(
-        "Upserted %d jobs into ChromaDB collection '%s' (total: %d)",
+        "Upserted %d jobs into ChromaDB collection '%s' (total in collection: %d)",
         len(valid_jobs),
         CHROMA_COLLECTION,
-        collection.count(),
+        total_count,
     )
     logger.info("Ingestion complete ✓")
+    return len(valid_jobs)
+
+
+def ingest(jobs_path: str, reset: bool = False) -> None:
+    """
+    Load jobs from a JSON file and upsert them into ChromaDB.
+    """
+    jobs_file = Path(jobs_path)
+    if not jobs_file.exists():
+        logger.error("Jobs file not found: %s", jobs_path)
+        sys.exit(1)
+
+    with open(jobs_file, "r", encoding="utf-8") as f:
+        raw_jobs: list[dict] = json.load(f)
+
+    logger.info("Loaded %d jobs from %s", len(raw_jobs), jobs_path)
+    ingest_jobs_list(raw_jobs, reset=reset)
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    default_file = "real_jobs.json" if Path("real_jobs.json").exists() else "sample_jobs.json"
+
     parser = argparse.ArgumentParser(description="Ingest jobs into ChromaDB")
     parser.add_argument(
         "--file",
-        default=str(Path(__file__).parent / "sample_jobs.json"),
-        help="Path to JSON file of jobs (default: sample_jobs.json)",
+        default=str(Path(__file__).parent / default_file),
+        help=f"Path to JSON file of jobs (default: {default_file})",
+    )
+    parser.add_argument(
+        "--fetch",
+        choices=["greenhouse", "lever", "remotive", "all"],
+        default=None,
+        help="Fetch real jobs live from a job portal and ingest directly",
+    )
+    parser.add_argument(
+        "--companies",
+        type=str,
+        default=None,
+        help="Comma-separated company slugs/boards when using --fetch (e.g. cloudflare,figma,spotify)",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=40,
+        help="Max jobs to fetch when using --fetch (default: 40)",
+    )
+    parser.add_argument(
+        "--save-fetched",
+        type=str,
+        default=None,
+        help="Optional path to save fetched jobs to a JSON file",
     )
     parser.add_argument(
         "--reset",
         action="store_true",
         help="Wipe the ChromaDB collection before ingesting",
     )
+
     args = parser.parse_args()
-    ingest(args.file, reset=args.reset)
+
+    if args.fetch:
+        company_list = [c.strip() for c in args.companies.split(",")] if args.companies else None
+        logger.info("Fetching real jobs [source=%s, companies=%s, limit=%d]...", args.fetch, company_list, args.limit)
+
+        jobs: list[dict] = []
+        if args.fetch == "greenhouse":
+            gh = GreenhouseFetcher()
+            jobs = gh.fetch_jobs(boards=company_list, limit=args.limit)
+        elif args.fetch == "lever":
+            lever = LeverFetcher()
+            jobs = lever.fetch_jobs(companies=company_list, limit=args.limit)
+        elif args.fetch == "remotive":
+            remotive = RemotiveFetcher()
+            jobs = remotive.fetch_jobs(limit=args.limit)
+        elif args.fetch == "all":
+            half = max(1, args.limit // 2)
+            gh_boards = company_list[:len(company_list)//2] if company_list else None
+            lever_comps = company_list[len(company_list)//2:] if company_list else None
+            jobs = fetch_all_jobs(limit_per_source=half, greenhouse_boards=gh_boards, lever_companies=lever_comps)
+
+        if not jobs:
+            logger.error("No jobs fetched — aborting ingestion")
+            sys.exit(1)
+
+        if args.save_fetched:
+            with open(args.save_fetched, "w", encoding="utf-8") as f:
+                json.dump(jobs, f, indent=2, ensure_ascii=False)
+            logger.info("Saved %d fetched jobs to %s", len(jobs), args.save_fetched)
+
+        ingest_jobs_list(jobs, reset=args.reset)
+    else:
+        ingest(args.file, reset=args.reset)

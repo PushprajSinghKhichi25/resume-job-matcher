@@ -12,7 +12,8 @@ import re
 from html import unescape
 from bs4 import BeautifulSoup
 
-
+# BeautifulSoup	Parses HTML and extract text
+# re- regular expressions for finding patterns in text. eg:email addresses, phone numbers
 # ── HTML Cleaning ─────────────────────────────────────────────────────────────
 
 def clean_html(raw: str) -> str:
@@ -41,7 +42,9 @@ def clean_html(raw: str) -> str:
     text = soup.get_text(separator=" ")
 
     # Step 4 — normalize whitespace
+    
     text = re.sub(r"[ \t]+", " ", text)
+    # This matches three or more consecutive newline characters and replaces them with two newlines.
     text = re.sub(r"\n{3,}", "\n\n", text)
     text = text.strip()
 
@@ -56,6 +59,7 @@ def clean_html(raw: str) -> str:
 # ── Metadata Extraction ───────────────────────────────────────────────────────
 
 _DEGREE_PATTERNS: list[tuple[int, list[str]]] = [
+    # degree level=3, search for phd or doctorate
     (3, [r"\bph\.?d\b", r"\bdoctorate\b"]),
     (2, [r"\bmaster'?s?\b", r"\bm\.?s\.?\b", r"\bm\.?eng\b", r"\bmba\b"]),
     (1, [r"\bbachelor'?s?\b", r"\bb\.?s\.?\b", r"\bb\.?e\.?\b", r"\bb\.?tech\b", r"\bundergraduate\b"]),
